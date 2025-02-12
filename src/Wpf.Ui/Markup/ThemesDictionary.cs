@@ -30,21 +30,56 @@ namespace Wpf.Ui.Markup;
 [UsableDuringInitialization(true)]
 public class ThemesDictionary : ResourceDictionary
 {
+    private ApplicationTheme _theme;
+
     /// <summary>
-    /// Sets the default application theme.
+    /// Gets or sets the default application theme.
     /// </summary>
     public ApplicationTheme Theme
     {
+        get => _theme;
         set => SetSourceBasedOnSelectedTheme(value);
     }
 
     public ThemesDictionary()
     {
-        SetSourceBasedOnSelectedTheme(ApplicationTheme.Light);
+        ApplicationTheme theme = TranslateSystemTheme();
+
+        SetSourceBasedOnSelectedTheme(theme);
     }
 
-    private void SetSourceBasedOnSelectedTheme(ApplicationTheme? selectedApplicationTheme)
+    private static ApplicationTheme TranslateSystemTheme()
     {
+        return ApplicationThemeManager.GetSystemTheme() switch
+        {
+            SystemTheme.Dark => ApplicationTheme.Dark,
+            SystemTheme.HC1 => ApplicationTheme.HighContrast,
+            SystemTheme.HC2 => ApplicationTheme.HighContrast,
+            SystemTheme.HCBlack => ApplicationTheme.HighContrast,
+            SystemTheme.HCWhite => ApplicationTheme.HighContrast,
+            _ => ApplicationTheme.Light,
+        };
+    }
+
+    public void SetTheme(ApplicationTheme theme)
+    {
+        SetSourceBasedOnSelectedTheme(theme);
+    }
+
+    private void SetSourceBasedOnSelectedTheme(ApplicationTheme selectedApplicationTheme)
+    {
+        if (selectedApplicationTheme == _theme)
+        {
+            return;
+        }
+
+        if (selectedApplicationTheme == ApplicationTheme.Unknown)
+        {
+            selectedApplicationTheme = TranslateSystemTheme();
+        }
+
+        _theme = selectedApplicationTheme;
+
         var themeName = selectedApplicationTheme switch
         {
             ApplicationTheme.Dark => "Dark",
@@ -52,6 +87,7 @@ public class ThemesDictionary : ResourceDictionary
             _ => "Light",
         };
 
-        Source = new Uri($"{ApplicationThemeManager.ThemesDictionaryPath}{themeName}.xaml", UriKind.Absolute);
+        var sourceUri = $"{ApplicationThemeManager.ThemesDictionaryPath}{themeName}.xaml";
+        Source = new Uri(sourceUri, UriKind.Absolute);
     }
 }

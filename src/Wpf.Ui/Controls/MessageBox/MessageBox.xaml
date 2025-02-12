@@ -17,14 +17,17 @@
         <Setter Property="FontSize" Value="14" />
         <Setter Property="Foreground" Value="{DynamicResource MessageBoxForeground}" />
         <Setter Property="TextElement.FontWeight" Value="Regular" />
-        <Setter Property="WindowStyle" Value="ToolWindow" />
+        <Setter Property="WindowStyle" Value="ToolWindw" />
         <Setter Property="ShowInTaskbar" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
         <!--<Setter Property="AllowsTransparency" Value="False" />-->
         <Setter Property="RenderOptions.BitmapScalingMode" Value="Fant" />
         <Setter Property="ResizeMode" Value="NoResize" />
+        <Setter Property="SizeToContent" Value="WidthAndHeight" />
         <Setter Property="WindowState" Value="Normal" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
         <Setter Property="OverridesDefaultStyle" Value="True" />
+        <Setter Property="WindowChrome.ResizeGripDirection" Value="None" />
         <Setter Property="WindowChrome.WindowChrome">
             <Setter.Value>
                 <!--
@@ -37,7 +40,6 @@
                     GlassFrameThickness="-1"
                     NonClientFrameEdges="None"
                     ResizeBorderThickness="0"
-                    ResizeGripDirection="None"
                     UseAeroCaptionButtons="False" />
             </Setter.Value>
         </Setter>
@@ -62,7 +64,9 @@
                                     Text="{TemplateBinding Title}" />
 
                                 <controls:TitleBar
+                                    Title="{TemplateBinding Title}"
                                     Grid.Row="0"
+                                    Background="{DynamicResource MessageBoxTopOverlay}"
                                     ForceShutdown="False"
                                     ShowMaximize="False"
                                     ShowMinimize="False" />
@@ -100,33 +104,44 @@
                                         </Grid.ColumnDefinitions>
 
                                         <controls:Button
+                                            x:Name="PrimaryButton"
                                             Grid.Column="0"
+                                            MinWidth="120"
                                             HorizontalAlignment="Stretch"
                                             Appearance="{TemplateBinding PrimaryButtonAppearance}"
-                                            Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:MessageBox}}, Path=TemplateButtonCommand, Mode=OneTime}"
+                                            Command="{TemplateBinding TemplateButtonCommand}"
                                             CommandParameter="{x:Static controls:MessageBoxButton.Primary}"
-                                            Content="{TemplateBinding PrimaryButtonText}"
                                             Icon="{TemplateBinding PrimaryButtonIcon}"
-                                            IsDefault="True" />
+                                            IsDefault="True"
+                                            IsEnabled="{Binding IsPrimaryButtonEnabled, RelativeSource={RelativeSource TemplatedParent}}">
+                                            <AccessText Text="{TemplateBinding PrimaryButtonText}" />
+                                        </controls:Button>
 
                                         <controls:Button
+                                            x:Name="SecondaryButton"
                                             Grid.Column="2"
+                                            MinWidth="120"
                                             HorizontalAlignment="Stretch"
                                             Appearance="{TemplateBinding SecondaryButtonAppearance}"
-                                            Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:MessageBox}}, Path=TemplateButtonCommand, Mode=OneTime}"
+                                            Command="{TemplateBinding TemplateButtonCommand}"
                                             CommandParameter="{x:Static controls:MessageBoxButton.Secondary}"
-                                            Content="{TemplateBinding SecondaryButtonText}"
-                                            Icon="{TemplateBinding SecondaryButtonIcon}" />
+                                            Icon="{TemplateBinding SecondaryButtonIcon}"
+                                            IsEnabled="{Binding IsSecondaryButtonEnabled, RelativeSource={RelativeSource TemplatedParent}}">
+                                            <AccessText Text="{TemplateBinding SecondaryButtonText}" />
+                                        </controls:Button>
 
                                         <controls:Button
+                                            x:Name="CloseButton"
                                             Grid.Column="4"
+                                            MinWidth="120"
                                             HorizontalAlignment="Stretch"
                                             Appearance="{TemplateBinding CloseButtonAppearance}"
-                                            Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:MessageBox}}, Path=TemplateButtonCommand, Mode=OneTime}"
+                                            Command="{TemplateBinding TemplateButtonCommand}"
                                             CommandParameter="{x:Static controls:MessageBoxButton.Close}"
-                                            Content="{TemplateBinding CloseButtonText}"
                                             Icon="{TemplateBinding CloseButtonIcon}"
-                                            IsCancel="True" />
+                                            IsCancel="True">
+                                            <AccessText Text="{TemplateBinding CloseButtonText}" />
+                                        </controls:Button>
                                     </Grid>
                                 </Border>
                             </Grid>
@@ -137,6 +152,8 @@
                             <Setter TargetName="ContentPresenter" Property="Margin" Value="8" />
                         </Trigger>
                         <Trigger Property="IsPrimaryButtonEnabled" Value="False">
+                            <Setter TargetName="PrimaryButton" Property="IsEnabled" Value="False" />
+                            <Setter TargetName="PrimaryButton" Property="IsTabStop" Value="False" />
                             <Setter TargetName="PrimaryColumn" Property="Width" Value="0" />
                         </Trigger>
                         <MultiTrigger>
@@ -145,12 +162,18 @@
                                 <Condition Property="IsSecondaryButtonEnabled" Value="False" />
                             </MultiTrigger.Conditions>
                             <MultiTrigger.Setters>
+                                <Setter TargetName="PrimaryButton" Property="IsEnabled" Value="False" />
+                                <Setter TargetName="PrimaryButton" Property="IsTabStop" Value="False" />
+                                <Setter TargetName="SecondaryButton" Property="IsEnabled" Value="False" />
+                                <Setter TargetName="SecondaryButton" Property="IsTabStop" Value="False" />
                                 <Setter TargetName="SecondSpacer" Property="Width" Value="0" />
                             </MultiTrigger.Setters>
                         </MultiTrigger>
                         <Trigger Property="IsSecondaryButtonEnabled" Value="False">
                             <Setter TargetName="FirstSpacer" Property="Width" Value="0" />
                             <Setter TargetName="SecondaryColumn" Property="Width" Value="0" />
+                            <Setter TargetName="SecondaryButton" Property="IsEnabled" Value="False" />
+                            <Setter TargetName="SecondaryButton" Property="IsTabStop" Value="False" />
                         </Trigger>
                         <Trigger Property="PrimaryButtonText" Value="">
                             <Setter Property="IsPrimaryButtonEnabled" Value="False" />

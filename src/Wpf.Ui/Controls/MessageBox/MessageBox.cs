@@ -4,9 +4,13 @@
 // All Rights Reserved.
 
 using System.Reflection;
+using System.Windows.Input;
+using Wpf.Ui.Extensions;
 using Wpf.Ui.Input;
 using Wpf.Ui.Interop;
+using Button = System.Windows.Controls.Button;
 using Size = System.Windows.Size;
+
 #if NET8_0_OR_GREATER
 using System.Runtime.CompilerServices;
 #endif
@@ -19,6 +23,9 @@ namespace Wpf.Ui.Controls;
 /// </summary>
 public class MessageBox : System.Windows.Window
 {
+    // Template parts
+    private Button? _firstEnabledButton;
+
     /// <summary>Identifies the <see cref="ShowTitle"/> dependency property.</summary>
     public static readonly DependencyProperty ShowTitleProperty = DependencyProperty.Register(
         nameof(ShowTitle),
@@ -243,6 +250,13 @@ public class MessageBox : System.Windows.Window
     )!;
 #endif
 
+    static MessageBox()
+    {
+        SizeToContentProperty.OverrideMetadata(
+            typeof(MessageBox),
+            new FrameworkPropertyMetadata(OnSizeToContentChanged));
+    }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="MessageBox"/> class.
     /// </summary>
@@ -326,9 +340,9 @@ public class MessageBox : System.Windows.Window
     /// </summary>
     protected virtual void OnLoaded()
     {
-        var rootElement = (UIElement)GetVisualChild(0)!;
+        FocusManager.SetFocusedElement(this, _firstEnabledButton);
 
-        ResizeToContentSize(rootElement);
+        ResizeToContentSize();
 
         switch (WindowStartupLocation)
         {
@@ -355,6 +369,17 @@ public class MessageBox : System.Windows.Window
         }
     }
 
+    public override void OnApplyTemplate()
+    {
+        Button? button = this.GetVisualDescendantsRecursive().OfType<Button>().FirstOrDefault(d => d.IsEnabled);
+        if (button is Button)
+        {
+            _firstEnabledButton = button;
+        }
+
+        base.OnApplyTemplate();
+    }
+
     // CanCenterOverWPFOwner property see https://source.dot.net/#PresentationFramework/System/Windows/Window.cs,e679e433777b21b8
     private bool CanCenterOverWPFOwner()
     {
@@ -373,19 +398,55 @@ public class MessageBox : System.Windows.Window
     /// <summary>
     /// Resizes the MessageBox to fit the content's size, including margins.
     /// </summary>
-    /// <param name="rootElement">The root element of the MessageBox</param>
-    protected virtual void ResizeToContentSize(UIElement rootElement)
+    protected virtual void ResizeToContentSize()
     {
+        if (SizeToContent == SizeToContent.Manual)
+        {
+            return;
+        }
+
+        UIElement? rootElement = this.GetVisualDescendantsRecursive().OfType<UIElement>().FirstOrDefault();
+        if (rootElement is null)
+        {
+            return;
+        }
+
+        rootElement.InvalidateMeasure();
+        Size size = new(double.PositiveInfinity, double.PositiveInfinity);
+        rootElement.Measure(size);
         Size desiredSize = rootElement.DesiredSize;
 
         // left and right margin
         const double margin = 12.0 * 2;
 
-        SetCurrentValue(WidthProperty, desiredSize.Width + margin);
-        SetCurrentValue(HeightProperty, desiredSize.Height);
+        void UpdateWidth()
+        {
+            SetCurrentValue(WidthProperty, desiredSize.Width + margin);
+            ResizeWidth(rootElement);
+        }
 
-        ResizeWidth(rootElement);
-        ResizeHeight(rootElement);
+        void UpdateHeight()
+        {
+            SetCurrentValue(HeightProperty, desiredSize.Height);
+            ResizeHeight(rootElement);
+        }
+
+        switch (SizeToContent)
+        {
+            case SizeToContent.WidthAndHeight:
+                UpdateWidth();
+                UpdateHeight();
+                break;
+            case SizeToContent.Height:
+                UpdateHeight();
+                break;
+            case SizeToContent.Width:
+                UpdateWidth();
+                break;
+            case SizeToContent.Manual:
+            default:
+                break;
+        }
     }
 
     protected override void OnClosing(CancelEventArgs e)
@@ -475,5 +536,15 @@ public class MessageBox : System.Windows.Window
         {
             SetCurrentValue(MaxWidthProperty, Width);
         }
+    }
+
+    private static void OnSizeToContentChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        (d as MessageBox)?.OnSizeToContentChanged((SizeToContent)e.NewValue);
+    }
+
+    private void OnSizeToContentChanged(SizeToContent sizeToContent)
+    {
+        this.ResizeToContentSize();
     }
 }
