@@ -3,9 +3,7 @@
 // Copyright (C) Leszek Pomianowski and WPF UI Contributors.
 // All Rights Reserved.
 
-using System.Reflection;
-using System.Windows.Input;
-using Wpf.Ui.Extensions;
+using System.Diagnostics;
 using Wpf.Ui.Input;
 using Wpf.Ui.Interop;
 using Button = System.Windows.Controls.Button;
@@ -21,7 +19,7 @@ namespace Wpf.Ui.Controls;
 /// <summary>
 /// Customized window for notifications.
 /// </summary>
-public class MessageBox : System.Windows.Window
+public class MessageBox : Window
 {
     // Template parts
     private Button? _firstEnabledButton;
@@ -122,13 +120,33 @@ public class MessageBox : System.Windows.Window
         new PropertyMetadata(true)
     );
 
-    /// <summary>Identifies the <see cref="TemplateButtonCommand"/> dependency property.</summary>
-    public static readonly DependencyProperty TemplateButtonCommandProperty = DependencyProperty.Register(
+    private static readonly DependencyPropertyKey MessageBoxResultPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(MessageBoxResult),
+        typeof(MessageBoxResult),
+        typeof(MessageBox),
+        new PropertyMetadata(null)
+    );
+
+    /// <summary>Identifies the <see cref="MessageBoxResult"/> dependency property.</summary>
+    public static readonly DependencyProperty MessageBoxResultProperty = MessageBoxResultPropertyKey.DependencyProperty;
+
+    /// <summary>Identifies the <see cref="ButtonPanelAlignment"/> dependency property.</summary>
+    public static readonly DependencyProperty ButtonPanelAlignmentProperty = DependencyProperty.Register(
+        nameof(ButtonPanelAlignment),
+        typeof(HorizontalAlignment),
+        typeof(MessageBox),
+        new PropertyMetadata(HorizontalAlignment.Right)
+    );
+
+    private static readonly DependencyPropertyKey TemplateButtonCommandPropertyKey = DependencyProperty.RegisterReadOnly(
         nameof(TemplateButtonCommand),
         typeof(IRelayCommand),
         typeof(MessageBox),
         new PropertyMetadata(null)
     );
+
+    /// <summary>Identifies the <see cref="TemplateButtonCommand"/> dependency property.</summary>
+    public static readonly DependencyProperty TemplateButtonCommandProperty = TemplateButtonCommandPropertyKey.DependencyProperty;
 
     /// <summary>
     /// Gets or sets a value indicating whether to show the <see cref="System.Windows.Window.Title"/> in <see cref="TitleBar"/>.
@@ -203,7 +221,7 @@ public class MessageBox : System.Windows.Window
     }
 
     /// <summary>
-    /// Gets or sets the <see cref="ControlAppearance"/> on the secondary button
+    /// Gets or sets the <see cref="ControlAppearance"/> on the secondary button.
     /// </summary>
     public ControlAppearance SecondaryButtonAppearance
     {
@@ -212,7 +230,7 @@ public class MessageBox : System.Windows.Window
     }
 
     /// <summary>
-    /// Gets or sets the <see cref="ControlAppearance"/> on the close button
+    /// Gets or sets the <see cref="ControlAppearance"/> on the close button.
     /// </summary>
     public ControlAppearance CloseButtonAppearance
     {
@@ -223,15 +241,6 @@ public class MessageBox : System.Windows.Window
     /// <summary>
     /// Gets or sets a value indicating whether the <see cref="MessageBox"/> primary button is enabled.
     /// </summary>
-    public bool IsSecondaryButtonEnabled
-    {
-        get => (bool)GetValue(IsSecondaryButtonEnabledProperty);
-        set => SetValue(IsSecondaryButtonEnabledProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether the <see cref="MessageBox"/> secondary button is enabled.
-    /// </summary>
     public bool IsPrimaryButtonEnabled
     {
         get => (bool)GetValue(IsPrimaryButtonEnabledProperty);
@@ -239,9 +248,33 @@ public class MessageBox : System.Windows.Window
     }
 
     /// <summary>
+    /// Gets or sets a value indicating whether the <see cref="MessageBox"/> secondary button is enabled.
+    /// </summary>
+    public bool IsSecondaryButtonEnabled
+    {
+        get => (bool)GetValue(IsSecondaryButtonEnabledProperty);
+        set => SetValue(IsSecondaryButtonEnabledProperty, value);
+    }
+
+    public MessageBoxResult MessageBoxResult
+    {
+        get => (MessageBoxResult)GetValue(MessageBoxResultProperty);
+        private set => SetValue(MessageBoxResultPropertyKey, value);
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating how the Panel containing the buttons are horizontally aligned.
+    /// </summary>
+    public HorizontalAlignment ButtonPanelAlignment
+    {
+        get => (HorizontalAlignment)GetValue(ButtonPanelAlignmentProperty);
+        set => SetValue(ButtonPanelAlignmentProperty, value);
+    }
+
+    /// <summary>
     /// Gets the command triggered after clicking the button on the Footer.
     /// </summary>
-    public IRelayCommand TemplateButtonCommand => (IRelayCommand)GetValue(TemplateButtonCommandProperty);
+    public IRelayCommand TemplateButtonCommand => (IRelayCommand)GetValue(TemplateButtonCommandPropertyKey.DependencyProperty);
 
 #if !NET8_0_OR_GREATER
     private static readonly PropertyInfo CanCenterOverWPFOwnerPropertyInfo = typeof(Window).GetProperty(
@@ -252,9 +285,7 @@ public class MessageBox : System.Windows.Window
 
     static MessageBox()
     {
-        SizeToContentProperty.OverrideMetadata(
-            typeof(MessageBox),
-            new FrameworkPropertyMetadata(OnSizeToContentChanged));
+        _ = SizeToContentProperty.AddChangedHandler<MessageBox, FrameworkPropertyMetadata, SizeToContent>(OnSizeToContentChanged);
     }
 
     /// <summary>
@@ -262,8 +293,9 @@ public class MessageBox : System.Windows.Window
     /// </summary>
     public MessageBox()
     {
-        Topmost = true;
-        SetValue(TemplateButtonCommandProperty, new RelayCommand<MessageBoxButton>(OnButtonClick));
+        SetValue(
+            TemplateButtonCommandPropertyKey,
+            new RelayCommand<MessageBoxButton>(OnButtonCommandExecuted));
 
         PreviewMouseDoubleClick += static (_, args) => args.Handled = true;
 
@@ -310,7 +342,10 @@ public class MessageBox : System.Windows.Window
             cancellationToken
         );
 
-        try
+#if NET6_0_OR_GREATER // Use IAsyncDisposable on platforms that support it
+        await
+#endif
+        using (tokenRegistration)
         {
             RemoveTitleBarAndApplyMica();
 
@@ -322,17 +357,9 @@ public class MessageBox : System.Windows.Window
             {
                 base.Show();
             }
+        }
 
-            return await Tcs.Task;
-        }
-        finally
-        {
-#if NET6_0_OR_GREATER
-            await tokenRegistration.DisposeAsync();
-#else
-            tokenRegistration.Dispose();
-#endif
-        }
+        return await Tcs.Task;
     }
 
     /// <summary>
@@ -342,7 +369,7 @@ public class MessageBox : System.Windows.Window
     {
         FocusManager.SetFocusedElement(this, _firstEnabledButton);
 
-        ResizeToContentSize();
+        ResizeToContentSize(SizeToContent);
 
         switch (WindowStartupLocation)
         {
@@ -377,6 +404,15 @@ public class MessageBox : System.Windows.Window
             _firstEnabledButton = button;
         }
 
+        if (this.Template.FindName("PART_RootElement", this) is UIElement border)
+        {
+            DiagnosticExtensions.AddAnyObject1ChangedHandler(border, (d, e) =>
+            {
+                Type type = d.GetType();
+                Debug.WriteLine($"Wpf.Ui.Extensions: INFO | {e.Arguments?.Property.Name} property on {type.FullName} instance changed from {e.Arguments?.OldValue} to {e.Arguments?.NewValue}");
+            });
+        }
+
         base.OnApplyTemplate();
     }
 
@@ -398,14 +434,14 @@ public class MessageBox : System.Windows.Window
     /// <summary>
     /// Resizes the MessageBox to fit the content's size, including margins.
     /// </summary>
-    protected virtual void ResizeToContentSize()
+    protected virtual void ResizeToContentSize(SizeToContent newValue)
     {
-        if (SizeToContent == SizeToContent.Manual)
+        if (newValue == SizeToContent.Manual)
         {
             return;
         }
 
-        UIElement? rootElement = this.GetVisualDescendantsRecursive().OfType<UIElement>().FirstOrDefault();
+        UIElement? rootElement = this.GetVisualChildren().OfType<UIElement>().FirstOrDefault();
         if (rootElement is null)
         {
             return;
@@ -417,11 +453,11 @@ public class MessageBox : System.Windows.Window
         Size desiredSize = rootElement.DesiredSize;
 
         // left and right margin
-        const double margin = 12.0 * 2;
+//        const double margin = 12.0 * 2;
 
         void UpdateWidth()
         {
-            SetCurrentValue(WidthProperty, desiredSize.Width + margin);
+            SetCurrentValue(WidthProperty, desiredSize.Width); // + margin);
             ResizeWidth(rootElement);
         }
 
@@ -431,7 +467,7 @@ public class MessageBox : System.Windows.Window
             ResizeHeight(rootElement);
         }
 
-        switch (SizeToContent)
+        switch (newValue)
         {
             case SizeToContent.WidthAndHeight:
                 UpdateWidth();
@@ -483,7 +519,7 @@ public class MessageBox : System.Windows.Window
     /// Occurs after the <see cref="MessageBoxButton"/> is clicked
     /// </summary>
     /// <param name="button">The MessageBox button</param>
-    protected virtual void OnButtonClick(MessageBoxButton button)
+    protected virtual void OnButtonCommandExecuted(MessageBoxButton button)
     {
         MessageBoxResult result = button switch
         {
@@ -491,6 +527,8 @@ public class MessageBox : System.Windows.Window
             MessageBoxButton.Secondary => MessageBoxResult.Secondary,
             _ => MessageBoxResult.None,
         };
+
+        MessageBoxResult = result;
 
         _ = Tcs?.TrySetResult(result);
         base.Close();
@@ -538,13 +576,8 @@ public class MessageBox : System.Windows.Window
         }
     }
 
-    private static void OnSizeToContentChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    private static void OnSizeToContentChanged(MessageBox @this, SizeToContent newValue)
     {
-        (d as MessageBox)?.OnSizeToContentChanged((SizeToContent)e.NewValue);
-    }
-
-    private void OnSizeToContentChanged(SizeToContent sizeToContent)
-    {
-        this.ResizeToContentSize();
+        @this.ResizeToContentSize(newValue);
     }
 }

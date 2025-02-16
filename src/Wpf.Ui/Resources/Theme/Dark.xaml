@@ -513,7 +513,7 @@
     <!--  MessageDialog  -->
     <SolidColorBrush x:Key="MessageBoxBackground" Color="{StaticResource SolidBackgroundFillColorBase}" />
     <SolidColorBrush x:Key="MessageBoxForeground" Color="{StaticResource TextFillColorPrimary}" />
-    <SolidColorBrush x:Key="MessageBoxSeparatorBorderBrush" Color="{StaticResource CardStrokeColorDefault}" />
+    <SolidColorBrush x:Key="MessageBoxSeparatorBorderBrush" Color="{StaticResource ControlStrokeColorDefault}" />
     <SolidColorBrush x:Key="MessageBoxTopOverlay" Color="{StaticResource LayerFillColorAlt}" />
 
     <!--  NavigationView  -->

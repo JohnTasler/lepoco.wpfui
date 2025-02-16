@@ -1,0 +1,13 @@
+## Putting the launchSettings.json file in the .gitignore is a bit
+## controversial. Until Visual Studio allows for merging this file
+## with a user-only specialization (e.g., launchSettings.user.json)
+## I have put it in this folder to minimize any unintended
+## side-effect of putting it in the root.
+##
+## For more context, see:
+##   https://github.com/github/gitignore/pull/2705
+##   https://github.com/github/VisualStudio/issues/1405
+##
+
+# VS debug support files
+**/Properties/launchSettings.json
